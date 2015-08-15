@@ -228,9 +228,9 @@ window.onload = () => {
     var program = initShaders(gl, "vertex-shader", "fragment-shader");
     gl.useProgram(program);
 
-    var sphere = CreateSphere()
+    var sphere = CreateCylinder()
     indices = flatten2_array(sphere.triangles)
-    vertexColors = sphere.colors
+    vertexColors = GetColorsArray(sphere.vertices.length)
     vertices = sphere.vertices
     numElements = indices.length
 
@@ -311,6 +311,132 @@ function renderCube()
     //gl.drawElements(gl.LINE_LOOP, numElements, gl.UNSIGNED_BYTE, 0)
 
     requestAnimationFrame(renderCube);
+}
+
+
+function CreateCylinder()
+{
+    var r = 0.7
+    var h = 0.7
+    var segmentCount = 20
+
+    var verticesCircle1 = []
+    var verticesCircle2 = []
+
+    var deltaTheta = 360 / segmentCount  //zx plane
+    for (var theta = 0; theta < 360; theta += deltaTheta)
+    {
+        var theta_ = radians(theta)
+        var x = r * Math.cos(theta_)
+        var z = r * Math.sin(theta_)
+        verticesCircle1.push(vec4(x, h, z, 1))
+        verticesCircle2.push(vec4(x, -h, z, 1))
+    }
+
+    var vertexCenter1: any = vec4(0, h, 0, 1)
+    var vertexCenter2: any = vec4(0, -h, 0, 1)
+
+    //add all vertices
+    var vertices = <number[][]>verticesCircle1.slice()
+    vertices.push(...verticesCircle2, vertexCenter1, vertexCenter2)
+
+    //indexes
+    var currentIndex = -1
+    vertices.forEach(vertex => {
+        (<any>vertex).index = ++currentIndex
+    })
+
+    //generate triangles
+    var triangles: number[][] = []
+
+    var addQuad = function (v1: number, v2: number, v3: number, v4: number)
+    {
+        triangles.push(vec3(v1, v2, v3))
+        triangles.push(vec3(v2, v4, v3))
+    }
+
+    for (var i = 0; i < verticesCircle1.length - 1; ++i)
+    {
+        triangles.push(vec3(verticesCircle1[i].index, verticesCircle1[i + 1].index, vertexCenter1.index))
+        triangles.push(vec3(verticesCircle2[i].index, verticesCircle2[i + 1].index, vertexCenter2.index))
+        //
+        addQuad(verticesCircle1[i].index, verticesCircle1[i + 1].index, verticesCircle2[i].index, verticesCircle2[i + 1].index)
+    }
+    triangles.push(vec3(verticesCircle1[verticesCircle1.length - 1].index, verticesCircle1[0].index, vertexCenter1.index))
+    triangles.push(vec3(verticesCircle2[verticesCircle2.length - 1].index, verticesCircle2[0].index, vertexCenter2.index))
+    //
+    addQuad(verticesCircle1[verticesCircle1.length - 1].index, verticesCircle1[0].index,
+        verticesCircle2[verticesCircle2.length - 1].index, verticesCircle2[0].index)
+
+
+    var result = {
+        triangles: triangles,
+        vertices: vertices,
+    }
+
+    return result 
+}
+
+
+function CreateCone()
+{
+    var r = 0.9
+    var h = 0.9
+    var segmentCount = 20
+
+    var verticesCircle: any[] = []
+
+    var deltaTheta = 360 / segmentCount  //zx plane
+    for (var theta = 0; theta < 360; theta += deltaTheta)
+    {
+        var theta_ = radians(theta)
+        var y = 0
+        var x = r * Math.cos(theta_)
+        var z = r * Math.sin(theta_)
+        verticesCircle.push(vec4(x, y, z, 1))
+    }
+
+    var vertexTop : any = vec4(0, h, 0, 1)
+    var vertexCircleCenter : any = vec4(0, 0, 0, 1)
+
+    //add all vertices
+    var vertices = <number[][]>verticesCircle.slice()
+    vertices.push(vertexTop, vertexCircleCenter)
+
+    //indexes
+    var currentIndex = -1
+    vertices.forEach(vertex => {
+        (<any>vertex).index = ++currentIndex
+    })
+
+    //generate triangles
+    var triangles: number[][] = []
+    for (var i = 0; i < verticesCircle.length - 1; ++i)
+    {
+        triangles.push(vec3(verticesCircle[i].index, verticesCircle[i + 1].index, vertexTop.index))
+        triangles.push(vec3(verticesCircle[i].index, verticesCircle[i + 1].index, vertexCircleCenter.index))
+    }
+    triangles.push(vec3(verticesCircle[verticesCircle.length - 1].index, verticesCircle[0].index, vertexTop.index))
+    triangles.push(vec3(verticesCircle[verticesCircle.length - 1].index, verticesCircle[0].index, vertexCircleCenter.index))
+
+    var result = {
+        triangles: triangles,
+        vertices: vertices,
+    }
+
+    return result  
+}
+
+
+function GetColorsArray(length : number) : number[][]
+{
+    var colors : number[][] = []
+    for (var i = 0; i < length; ++i) {
+        var r = Math.floor(Math.random() * 5); //0 to 5
+        //colors.push(vec4(1, 0, 0, 1))
+        colors.push(vertexColorsAll[r])
+    }
+    return colors
 }
 
 
@@ -398,20 +524,12 @@ function CreateSphere()
         addQuad(ring1[ring1.length - 1].index, ring1[0].index, ring2[ring1.length - 1].index, ring2[0].index)
     }
 
-    //colors
-    var colors = []
-    for (var i = 0; i < vertices.length; ++i)
-    {
-        var r = Math.floor(Math.random() * 5); //0 to 5
-        //colors.push(vec4(1, 0, 0, 1))
-        colors.push(vertexColorsAll[r])
-    }
-
     var result = {
         triangles : triangles,
         vertices: vertices,
-        colors: colors
     }
 
     return result    
 }
+
+
