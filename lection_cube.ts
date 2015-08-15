@@ -170,17 +170,6 @@ var yAxis = 1;
 var zAxis = 2;
 var axis = 0;
 
-var vertices = [
-    vec4(-0.5, -0.5, 0.5, 1.0),
-    vec4(-0.5, 0.5, 0.5, 1.0),
-    vec4(0.5, 0.5, 0.5, 1.0),
-    vec4(0.5, -0.5, 0.5, 1.0),
-    vec4(-0.5, -0.5, -0.5, 1.0),
-    vec4(-0.5, 0.5, -0.5, 1.0),
-    vec4(0.5, 0.5, -0.5, 1.0),
-    vec4(0.5, -0.5, -0.5, 1.0)
-];
-
 var vertexColorsAll = [
     [0.0, 0.0, 0.0, 1.0],  // black
     [1.0, 0.0, 0.0, 1.0],  // red
@@ -190,23 +179,6 @@ var vertexColorsAll = [
     [1.0, 0.0, 1.0, 1.0],  // magenta
     [0.0, 1.0, 1.0, 1.0],  // cyan
     [1.0, 1.0, 1.0, 1.0]   // white
-];
-
-var vertexColors = vertexColorsAll.slice()
-
-var indices = [
-    1, 0, 3,
-    3, 2, 1,
-    2, 3, 7,
-    7, 6, 2,
-    3, 0, 4,
-    4, 7, 3,
-    6, 5, 1,
-    1, 2, 6,
-    4, 5, 6,
-    6, 7, 4,
-    5, 4, 0,
-    0, 1, 5
 ];
 
 window.onload = () => {
@@ -228,10 +200,8 @@ window.onload = () => {
     var program = initShaders(gl, "vertex-shader", "fragment-shader");
     gl.useProgram(program);
 
-    var sphere = CreateCylinder()
-    indices = flatten2_array(sphere.triangles)
-    vertexColors = GetColorsArray(sphere.vertices.length)
-    vertices = sphere.vertices
+    var figure = CreateCube()
+    var indices = flatten2_array(figure.triangles)
     numElements = indices.length
 
 
@@ -243,7 +213,7 @@ window.onload = () => {
     //color array atrribute buffer
     var cBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten2(vertexColors), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten2(GetColorsArray(figure.vertices.length)), gl.STATIC_DRAW);
 
     var vColor = gl.getAttribLocation(program, "vColor");
     gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 0, 0);
@@ -252,7 +222,7 @@ window.onload = () => {
     //vertex array attribute buffer
     var vBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten2(vertices), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten2(figure.vertices), gl.STATIC_DRAW);
 
     var vPosition = gl.getAttribLocation(program, "vPosition");
     gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
@@ -311,6 +281,45 @@ function renderCube()
     //gl.drawElements(gl.LINE_LOOP, numElements, gl.UNSIGNED_BYTE, 0)
 
     requestAnimationFrame(renderCube);
+}
+
+
+
+function CreateCube()
+{
+    var vertices = [
+        vec4(-0.5, -0.5, 0.5, 1.0),
+        vec4(-0.5, 0.5, 0.5, 1.0),
+        vec4(0.5, 0.5, 0.5, 1.0),
+        vec4(0.5, -0.5, 0.5, 1.0),
+        vec4(-0.5, -0.5, -0.5, 1.0),
+        vec4(-0.5, 0.5, -0.5, 1.0),
+        vec4(0.5, 0.5, -0.5, 1.0),
+        vec4(0.5, -0.5, -0.5, 1.0)
+    ];
+
+    var indices = [
+        [1, 0, 3],
+        [3, 2, 1],
+        [2, 3, 7],
+        [7, 6, 2],
+        [3, 0, 4],
+        [4, 7, 3],
+        [6, 5, 1],
+        [1, 2, 6],
+        [4, 5, 6],
+        [6, 7, 4],
+        [5, 4, 0],
+        [0, 1, 5]
+    ];
+
+    var result =
+    {
+        triangles: indices,
+        vertices: vertices,
+    }
+
+    return result 
 }
 
 
