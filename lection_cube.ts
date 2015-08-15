@@ -160,7 +160,7 @@
 
 var gl: WebGLRenderingContext
 var canvas: HTMLCanvasElement
-var numVertices = 36
+var numElements = 12*3
 var theta = [0.0, 0.0, 0.0]
 var thetaLoc: WebGLUniformLocation
 var colorLoc: WebGLUniformLocation
@@ -232,7 +232,7 @@ window.onload = () => {
     indices = flatten2_array(sphere.triangles)
     vertexColors = sphere.colors
     vertices = sphere.vertices
-    numVertices = sphere.vertices.length
+    numElements = indices.length
 
 
     // array element buffer
@@ -304,11 +304,11 @@ function renderCube()
     
     gl.uniform3fv(colorLoc, [1, 1, 1]);
     //this is more efficient than use triangle strips or fans
-    gl.drawElements(gl.TRIANGLES, numVertices, gl.UNSIGNED_SHORT, 0)
+    gl.drawElements(gl.TRIANGLES, numElements, gl.UNSIGNED_SHORT, 0)
 
     //so, for wireframe we need separate indices >_<
     gl.uniform3fv(colorLoc, [0, 0, 0]);
-    gl.drawElements(gl.LINE_LOOP, numVertices, gl.UNSIGNED_BYTE, 0)
+    //gl.drawElements(gl.LINE_LOOP, 3, gl.UNSIGNED_BYTE, 0)
 
     requestAnimationFrame(renderCube);
 }
@@ -378,11 +378,11 @@ function CreateSphere()
     var addQuad = function (v1: number, v2: number, v3: number, v4: number)
     {
         triangles.push(vec3(v1, v2, v3))
-        triangles.push(vec3(v2, v3, v4))
+        triangles.push(vec3(v2, v4, v3))
     }
     
     //connect rings
-    for (var i = 0; i <= 1/*rings.length - 1*/; ++i)
+    for (var i = 0; i <= 0/*rings.length - 1*/; ++i)
     {
         var ring1 : any = rings[i]
         var ring2 : any = rings[i + 1]
@@ -392,7 +392,7 @@ function CreateSphere()
             addQuad(ring1[j].index, ring1[j + 1].index, ring2[j].index, ring2[j + 1].index)
         }
 
-        //addQuad(ring1[ring1.length - 1].index, ring1[0].index, ring2[0].index, ring2[ring1.length - 1].index)
+        addQuad(ring1[ring1.length - 1].index, ring1[0].index, ring2[ring1.length - 1].index, ring2[0].index)
     }
 
     //colors
@@ -408,5 +408,5 @@ function CreateSphere()
         colors: colors
     }
 
-     return result    
+    return result    
 }
