@@ -23,10 +23,12 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="index.html" />
+    <Content Include="lection_cube.html" />
     <Content Include="web.config" />
   </ItemGroup>
   <ItemGroup>
     <TypeScriptCompile Include="app.ts" />
+    <TypeScriptCompile Include="lection_cube.ts" />
     <TypeScriptCompile Include="flatten.ts" />
     <TypeScriptCompile Include="initShaders.ts" />
     <TypeScriptCompile Include="MV.ts" />
