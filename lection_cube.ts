@@ -181,7 +181,7 @@ var vertices = [
     vec4(0.5, -0.5, -0.5, 1.0)
 ];
 
-var vertexColors = [
+var vertexColorsAll = [
     [0.0, 0.0, 0.0, 1.0],  // black
     [1.0, 0.0, 0.0, 1.0],  // red
     [1.0, 1.0, 0.0, 1.0],  // yellow
@@ -191,6 +191,8 @@ var vertexColors = [
     [0.0, 1.0, 1.0, 1.0],  // cyan
     [1.0, 1.0, 1.0, 1.0]   // white
 ];
+
+var vertexColors = vertexColorsAll.slice()
 
 var indices = [
     1, 0, 3,
@@ -226,11 +228,17 @@ window.onload = () => {
     var program = initShaders(gl, "vertex-shader", "fragment-shader");
     gl.useProgram(program);
 
+    var sphere = CreateSphere()
+    indices = flatten2_array(sphere.triangles)
+    vertexColors = sphere.colors
+    vertices = sphere.vertices
+    numVertices = sphere.vertices.length
+
 
     // array element buffer
     var iBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint8Array(indices), gl.STATIC_DRAW);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
 
     //color array atrribute buffer
     var cBuffer = gl.createBuffer();
@@ -290,17 +298,115 @@ function renderCube()
 {
     //rotate square 3 choices: in CPU, in GPU send angle, in GPU send MVM
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    theta[axis] += 2.0;
+    theta[axis] += 0.3;
     gl.uniform3fv(thetaLoc, theta);
     //gl.drawArrays(gl.TRIANGLES, 0, numVertices);
     
     gl.uniform3fv(colorLoc, [1, 1, 1]);
     //this is more efficient than use triangle strips or fans
-    //gl.drawElements(gl.TRIANGLES, numVertices, gl.UNSIGNED_BYTE, 0)
+    gl.drawElements(gl.TRIANGLES, numVertices, gl.UNSIGNED_SHORT, 0)
 
-
+    //so, for wireframe we need separate indices >_<
     gl.uniform3fv(colorLoc, [0, 0, 0]);
-    gl.drawElements(gl.LINE_STRIP, 5, gl.UNSIGNED_BYTE, 0)
+    gl.drawElements(gl.LINE_LOOP, numVertices, gl.UNSIGNED_BYTE, 0)
 
     requestAnimationFrame(renderCube);
+}
+
+
+function CreateSphere()
+{
+    var r = 0.9
+    var segmentCount = 10
+    var center = vec2(0, 0)
+
+    ///
+    var rings : number[][][] = []
+
+    var deltaPhi = 180 / segmentCount //xy plane - outer ring
+    var deltaTheta = 360 / segmentCount  //yz plane
+    for (var phi = -90 + deltaPhi; phi <= 90 - deltaPhi; phi += deltaPhi)
+    {
+        var lastRing : number[][] = []
+        rings.push(lastRing)
+
+        for (var theta = 0; theta < 360; theta += deltaTheta)
+        {
+            var phi_ = radians(phi)
+            var theta_ = radians(theta)
+
+            var x = r * Math.sin(phi_)
+            var y = r * Math.cos(phi_) * Math.cos(theta_)
+            var z = r * Math.cos(phi_) * Math.sin(theta_)
+            lastRing.push(vec4(x, y, z, 1))
+        }
+    }
+
+    var poleLeft = <any>vec4(-r, 0, 0, 1);
+    var poleRight = <any>vec4(r, 0, 0, 1)
+
+    //collect vertices
+    var vertices : number[][] = []
+    vertices.push(poleLeft)
+    rings.forEach(ring =>
+    {
+        ring.forEach(vertex =>
+        {
+            vertices.push(vertex)
+        })
+    })
+    vertices.push(poleRight)
+
+    //indexes
+    var currentIndex = -1
+    vertices.forEach(vertex =>
+    {
+        (<any>vertex).index = ++currentIndex
+    })
+
+    //---------generate triangles---------
+    var triangles : number[][] = []
+    //connect poles 
+    for (var i = 0; i < rings[0].length - 1; ++i)
+    {
+        var ringZero: any[] = rings[0]
+        var ringLast: any[] = rings[rings.length - 1]
+        //triangles.push(vec3(poleLeft.index, ringZero[i].index, ringZero[i + 1].index))
+        //triangles.push(vec3(poleRight.index, ringLast[i].index, ringLast[i + 1].index))
+    }
+
+    var addQuad = function (v1: number, v2: number, v3: number, v4: number)
+    {
+        triangles.push(vec3(v1, v2, v3))
+        triangles.push(vec3(v2, v3, v4))
+    }
+    
+    //connect rings
+    for (var i = 0; i <= 1/*rings.length - 1*/; ++i)
+    {
+        var ring1 : any = rings[i]
+        var ring2 : any = rings[i + 1]
+
+        for (var j = 0; j < ring1.length - 1; ++j)
+        {
+            addQuad(ring1[j].index, ring1[j + 1].index, ring2[j].index, ring2[j + 1].index)
+        }
+
+        //addQuad(ring1[ring1.length - 1].index, ring1[0].index, ring2[0].index, ring2[ring1.length - 1].index)
+    }
+
+    //colors
+    var colors = []
+    for (var i = 0; i < vertices.length; ++i)
+    {
+        colors.push(vec4(1, 0, 0, 1))
+    }
+
+    var result = {
+        triangles : triangles,
+        vertices: vertices,
+        colors: colors
+    }
+
+     return result    
 }

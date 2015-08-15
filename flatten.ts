@@ -26,3 +26,17 @@ function flatten2(v: number[][]): Float32Array
 
     return floats;
 }
+
+function flatten2_array(v: number[][]): number[]
+{
+    var result: number[] = []
+
+    var idx = 0;
+    for (var i = 0; i < v.length; ++i) {
+        for (var j = 0; j < v[i].length; ++j) {
+            result.push(v[i][j])
+        }
+    }
+
+    return result;
+}
