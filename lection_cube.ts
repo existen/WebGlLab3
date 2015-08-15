@@ -308,7 +308,7 @@ function renderCube()
 
     //so, for wireframe we need separate indices >_<
     gl.uniform3fv(colorLoc, [0, 0, 0]);
-    //gl.drawElements(gl.LINE_LOOP, 3, gl.UNSIGNED_BYTE, 0)
+    //gl.drawElements(gl.LINE_LOOP, numElements, gl.UNSIGNED_BYTE, 0)
 
     requestAnimationFrame(renderCube);
 }
@@ -317,7 +317,7 @@ function renderCube()
 function CreateSphere()
 {
     var r = 0.9
-    var segmentCount = 10
+    var segmentCount = 20
     var center = vec2(0, 0)
 
     ///
@@ -371,9 +371,12 @@ function CreateSphere()
     {
         var ringZero: any[] = rings[0]
         var ringLast: any[] = rings[rings.length - 1]
-        //triangles.push(vec3(poleLeft.index, ringZero[i].index, ringZero[i + 1].index))
-        //triangles.push(vec3(poleRight.index, ringLast[i].index, ringLast[i + 1].index))
+        triangles.push(vec3(poleLeft.index, ringZero[i].index, ringZero[i + 1].index))
+        triangles.push(vec3(poleRight.index, ringLast[i].index, ringLast[i + 1].index))
     }
+
+    triangles.push(vec3(poleLeft.index, ringZero[ringZero.length - 1].index, ringZero[0].index))
+    triangles.push(vec3(poleRight.index, ringLast[ringLast.length - 1].index, ringLast[0].index))
 
     var addQuad = function (v1: number, v2: number, v3: number, v4: number)
     {
@@ -382,7 +385,7 @@ function CreateSphere()
     }
     
     //connect rings
-    for (var i = 0; i <= 0/*rings.length - 1*/; ++i)
+    for (var i = 0; i < rings.length - 1; ++i)
     {
         var ring1 : any = rings[i]
         var ring2 : any = rings[i + 1]
@@ -399,7 +402,9 @@ function CreateSphere()
     var colors = []
     for (var i = 0; i < vertices.length; ++i)
     {
-        colors.push(vec4(1, 0, 0, 1))
+        var r = Math.floor(Math.random() * 5); //0 to 5
+        //colors.push(vec4(1, 0, 0, 1))
+        colors.push(vertexColorsAll[r])
     }
 
     var result = {
