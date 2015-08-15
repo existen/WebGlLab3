@@ -1,4 +1,4 @@
-﻿var gl : WebGLRenderingContext
+﻿
 
 //4.5
 //linear vector spaces
@@ -110,47 +110,175 @@
 
 //instancing - start with object at origin with standart size, angle. Apply transformations in order - scale, orient, locate
 
+//5.5
+//model coordinates (unit) -> view -> camera. object frame -> camera frame. 
+//model matrix + viewing matrix = model view matrix
+//project transformation - 4x4 matrix. non-affine transformation and clipping. camera coordinates -> clip coordinates
+//q = P * MV * p. P - projection matrix, MV - model-view matrix
+
+//Current Transformation Matrix C = P * MV. CTM can be applied to vertices to GPU or CPU. p` = Cp
+//C <- CM --can postmultiply C by an arbitrary matrix
+//mv.js
+
+//rotation about a fixed point: C <- I. C <- CT. C <- CR. C <- CT^-1. Here result is C = TRT^-1 - but this is backwards!
+//because if p` = Cp then p` = TRT^-1 * p - and first T^-1 * p - this is wrong! because of postmultiplication
+
+//solution: we need to reverse the order. we need C = T^-1*R*T. C <- I; C <- CT^-1; C <- CR; C <- CT
+//the last operation specified is the first executed in the program. like stack
+
+//var m = mat4(); //create identity matrix
+//var r = rotate(theta, vx, vy, vz); //rotation matrix by angle theta in degrees and (vx, vy, vz) - axis of rotation
+//m = mult(m, r);   //also rotateX, rotateY, rotateZ functions
+//translation and scaling: var s = scale(sx, sy, sz); var t = translate(dx, dy, dz); m = mult(s, t);
+
+//example: rotation about z axis by 30 degrees with a fixed point of (1.0,2.0,3.0)
+//var m = mult(translate(1.0, 2.0, 3.0), rotate(30, 0, 0, 1)); m = mult(m, translate(-1.0, -2.0, -3.0));
+//here last matrix specified is the first applied
+
+//WebGL wants column major data. we use row major order. flatten function convert from row major to column major
+//gl.uniformMatrix4f - automatic transpose need to be false
+
+//matrix stacks - for traversing hierarchical data structures
+//var stack = []; stack.push(...); dd = stack.pop()
+
+//5.6. Cube
+//1. Specify vertices in clip coordinates. box: (-1, -1, -1) to (1, 1, 1)
+//2. Use default camera; don't worry about projection matrix; in MVM is only needed for rotation
+
+//quartenions. smooth rotation. virtual trackball
+
+//6.7
+//line loop around 3 points
+//gl.polygonOffset
+//Delauney triangulation
+//
+
+//
+//
 
 
+
+var gl: WebGLRenderingContext
+var canvas: HTMLCanvasElement
+var numVertices = 36
+var theta = [0.0, 0.0, 0.0]
+var thetaLoc: WebGLUniformLocation
+
+var xAxis = 0;
+var yAxis = 1;
+var zAxis = 2;
+var axis = 0;
+
+var vertices = [
+    vec4(-0.5, -0.5, 0.5, 1.0),
+    vec4(-0.5, 0.5, 0.5, 1.0),
+    vec4(0.5, 0.5, 0.5, 1.0),
+    vec4(0.5, -0.5, 0.5, 1.0),
+    vec4(-0.5, -0.5, -0.5, 1.0),
+    vec4(-0.5, 0.5, -0.5, 1.0),
+    vec4(0.5, 0.5, -0.5, 1.0),
+    vec4(0.5, -0.5, -0.5, 1.0)
+];
+
+var vertexColors = [
+    [0.0, 0.0, 0.0, 1.0],  // black
+    [1.0, 0.0, 0.0, 1.0],  // red
+    [1.0, 1.0, 0.0, 1.0],  // yellow
+    [0.0, 1.0, 0.0, 1.0],  // green
+    [0.0, 0.0, 1.0, 1.0],  // blue
+    [1.0, 0.0, 1.0, 1.0],  // magenta
+    [0.0, 1.0, 1.0, 1.0],  // cyan
+    [1.0, 1.0, 1.0, 1.0]   // white
+];
+
+var indices = [
+    1, 0, 3,
+    3, 2, 1,
+    2, 3, 7,
+    7, 6, 2,
+    3, 0, 4,
+    4, 7, 3,
+    6, 5, 1,
+    1, 2, 6,
+    4, 5, 6,
+    6, 7, 4,
+    5, 4, 0,
+    0, 1, 5
+];
 
 window.onload = () => {
 
-    var canvas = <HTMLCanvasElement>document.getElementById("gl-canvas");
+    canvas = <HTMLCanvasElement>document.getElementById("gl-canvas");
     gl = setupWebGL(canvas);
-    if (!gl) {
-        alert("WebGL isn't available");
-    }
+    if (!gl) { alert("WebGL isn't available"); }
 
-    gl.viewport(0, 0, canvas.width, canvas.height)
-    //gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    //colorCube();
 
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(1.0, 1.0, 1.0, 1.0);
+
+    gl.enable(gl.DEPTH_TEST);
+
+    //
+    //  Load shaders and initialize attribute buffers
+    //
     var program = initShaders(gl, "vertex-shader", "fragment-shader");
     gl.useProgram(program);
 
 
-    //var vBuffer = gl.createBuffer();
-    //gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
-    //gl.bufferData(gl.ARRAY_BUFFER, 8 * maxNumVertices, gl.STATIC_DRAW);
+    // array element buffer
+    var iBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint8Array(indices), gl.STATIC_DRAW);
 
-    //var vPosition = gl.getAttribLocation(program, "vPosition");
-    //gl.vertexAttribPointer(vPosition, 2, gl.FLOAT, false, 0, 0);
-    //gl.enableVertexAttribArray(vPosition);
+    //color array atrribute buffer
+    var cBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten2(vertexColors), gl.STATIC_DRAW);
 
-    //var cBuffer = gl.createBuffer();
-    //gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
-    //gl.bufferData(gl.ARRAY_BUFFER, 16 * maxNumVertices, gl.STATIC_DRAW);
+    var vColor = gl.getAttribLocation(program, "vColor");
+    gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(vColor);
 
-    //var vColor = gl.getAttribLocation(program, "vColor");
-    //gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 0, 0);
-    //gl.enableVertexAttribArray(vColor);
+    //vertex array attribute buffer
+    var vBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten2(vertices), gl.STATIC_DRAW);
 
-     render()
-};
+    var vPosition = gl.getAttribLocation(program, "vPosition");
+    gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(vPosition);
+
+    thetaLoc = gl.getUniformLocation(program, "theta");
+
+    //event listeners for buttons
+
+    document.getElementById("xButton").onclick = function () {
+        axis = xAxis;
+    };
+    document.getElementById("yButton").onclick = function () {
+        axis = yAxis;
+    };
+    document.getElementById("zButton").onclick = function () {
+        axis = zAxis;
+    };
+
+    render();
+}
+
 
 
 function render()
 {
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    //rotate square 3 choices: in CPU, in GPU send angle, in GPU send MVM
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    theta[axis] += 2.0;
+    gl.uniform3fv(thetaLoc, theta);
+    //gl.drawArrays(gl.TRIANGLES, 0, numVertices);
     
-    //window.requestAnimationFrame(render);
+
+    //this is more efficient than use triangle strips or fans
+    gl.drawElements(gl.TRIANGLES, numVertices, gl.UNSIGNED_BYTE, 0)
+
+    requestAnimationFrame(render);
 }

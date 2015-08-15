@@ -12,3 +12,17 @@ function flatten(v: number[]): Float32Array
 
     return floats;
 }
+
+function flatten2(v: number[][]): Float32Array
+{
+    var floats = new Float32Array(v.length * v[0].length);
+
+    var idx = 0;
+    for (var i = 0; i < v.length; ++i) {
+        for (var j = 0; j < v[i].length; ++j) {
+            floats[idx++] = v[i][j];
+        }
+    }
+
+    return floats;
+}
