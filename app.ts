@@ -5,7 +5,13 @@ var sliderRotation: HTMLInputElement[] = []
 var sliderPosition: HTMLInputElement[] = []
 var sliderScale: HTMLInputElement[] = []
 var boxFigure: HTMLSelectElement
-var numElements = 0
+var maxNumVertices = 100000;
+var indexVertices = 0
+var indexElements = 0
+var iBuffer: WebGLBuffer
+var cBuffer: WebGLBuffer
+var vBuffer: WebGLBuffer
+
 
 window.onload = () => {
 
@@ -30,63 +36,123 @@ window.onload = () => {
     sliderScale[2] = <HTMLInputElement>document.getElementById("sliderScaleZ")
 
     var butCreate = <HTMLButtonElement>document.getElementById("butCreate")
+    var butClear = <HTMLButtonElement>document.getElementById("butClear")
     boxFigure = <HTMLSelectElement>document.getElementById("boxFigure")
 
     butCreate.onclick = CreateFigureOnCanvas
+    butClear.onclick = function()
+    {
+        indexVertices = 0
+        indexElements = 0
+    }
     //
 
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.enable(gl.DEPTH_TEST);
 
-    //
-    //  Load shaders and initialize attribute buffers
-    //
-
+    InitGL()
 }
 
-function DrawFigure(figure)
+
+function InitGL()
 {
     var program = initShaders(gl, "vertex-shader", "fragment-shader");
     gl.useProgram(program);
 
-    var indices = flatten2_array(figure.triangles)
-    numElements = indices.length
-
 
     // array element buffer
-    var iBuffer = gl.createBuffer();
+    iBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, maxNumVertices, gl.STATIC_DRAW);
+    checkError()
 
     //color array atrribute buffer
-    var cBuffer = gl.createBuffer();
+    cBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten2(GetColorsArray(figure.vertices.length)), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, maxNumVertices, gl.STATIC_DRAW);
+    checkError()
 
     var vColor = gl.getAttribLocation(program, "vColor");
     gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(vColor);
+    checkError()
 
     //vertex array attribute buffer
-    var vBuffer = gl.createBuffer();
+    vBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten2(figure.vertices), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, maxNumVertices, gl.STATIC_DRAW);
+    checkError()
 
     var vPosition = gl.getAttribLocation(program, "vPosition");
     gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(vPosition);
+    checkError()
+
+    render()
+}
+
+
+
+function DrawFigure(figure)
+{
+    var indices = flatten2_array(figure.triangles)
+    numElements = indices.length
+    
+    //recalculate indices
+    for (var i = 0; i < indices.length; ++i)
+    {
+        indices[i] = indices[i] + indexVertices
+    }
+    //
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 16 * indexVertices, flatten2(figure.vertices));    
+    checkError()
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 16 * indexVertices, flatten2(GetColorsArray(figure.vertices.length)));
+    checkError()
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuffer);
+    gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 2 * indexElements, new Uint16Array(indices));
+    checkError()
+    
+    indexVertices += figure.vertices.length
+    indexElements += indices.length    
 
     render();
+}
+
+function checkError()
+{
+    var err = gl.getError()
+    if (err != 0)
+    {
+        if (err == gl.INVALID_OPERATION)
+            alert("INVALID_OPERATION")
+        else if (err == gl.INVALID_ENUM)
+            alert("INVALID_ENUM")
+        else if (err == gl.INVALID_FRAMEBUFFER_OPERATION)
+            alert("INVALID_FRAMEBUFFER_OPERATION")
+        else if (err == gl.INVALID_VALUE)
+            alert("INVALID_VALUE")
+        else
+            alert("XXX")
+
+        var fff = 5
+    }
 }
 
 function render()
 {
     //rotate square 3 choices: in CPU, in GPU send angle, in GPU send MVM
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-    gl.drawElements(gl.TRIANGLES, numElements, gl.UNSIGNED_SHORT, 0)
+    gl.drawElements(gl.TRIANGLES, indexElements, gl.UNSIGNED_SHORT, 0)
 
-    requestAnimationFrame(render);
+    //gl.drawElements(gl.LINE_LOOP, indexElements, gl.UNSIGNED_SHORT, 0)
+
+    //requestAnimationFrame(render);
 }
 
 function CreateFigureOnCanvas()
