@@ -152,7 +152,7 @@ function render()
 
     //gl.drawElements(gl.LINE_LOOP, indexElements, gl.UNSIGNED_SHORT, 0)
 
-    //requestAnimationFrame(render);
+    requestAnimationFrame(render);
 }
 
 function CreateFigureOnCanvas()
