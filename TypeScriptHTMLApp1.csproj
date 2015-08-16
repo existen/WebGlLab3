@@ -28,6 +28,7 @@
   </ItemGroup>
   <ItemGroup>
     <TypeScriptCompile Include="app.ts" />
+    <TypeScriptCompile Include="figures.ts" />
     <TypeScriptCompile Include="lection_cube.ts" />
     <TypeScriptCompile Include="flatten.ts" />
     <TypeScriptCompile Include="initShaders.ts" />

@@ -267,11 +267,40 @@ function subtract(u, v): any
 
 //----------------------------------------------------------------------------
 
-function mult(u, v) : number[]
+function multArray(...matrices: number[][]) : number[]
+{
+    var result = matrices[0]
+    for (var i = 1; i < matrices.length; ++i)
+    {
+        result = mult(result, matrices[i])
+    }
+    return result
+}
+
+function multVectorWithMatrix(matrix, vec: any): number[]
+{
+    var result: any = [];
+
+    for (var i = 0; i < matrix.length; ++i)
+    {
+        result.push([]);
+
+        var sum = 0.0;
+        for (var k = 0; k < matrix.length; ++k)
+        {
+            sum += matrix[i][k] * vec[k];
+        }
+        result[i].push(sum);
+    }
+
+    return result
+}
+
+function mult(u, v)
 {
     var result : any = [];
 
-    if (u.matrix && v.matrix) {
+    if (u.matrix || v.matrix) {
         if (u.length != v.length) {
             throw "mult(): trying to add matrices of different dimensions";
         }
@@ -487,14 +516,15 @@ function perspective(fovy, aspect, near, far)
 function transpose(m)
 {
     if (!m.matrix) {
-        return "transpose(): trying to transpose a non-matrix";
+        //return "transpose(): trying to transpose a non-matrix";
+        m = [m]
     }
 
     var result : any = [];
     for (var i = 0; i < m.length; ++i) {
         result.push([]);
         for (var j = 0; j < m[i].length; ++j) {
-            result[i].push(m[j][i]);
+            result[i].push(m[i][j]);
         }
     }
 
