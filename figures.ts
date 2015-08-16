@@ -16,7 +16,7 @@ function GetColorsArray(length: number): number[][]
 {
     var colors: number[][] = []
     for (var i = 0; i < length; ++i) {
-        var r = Math.floor(Math.random() * 5); //0 to 5
+        var r = Math.floor(Math.random() * 6); //0 to 5
         //colors.push(vec4(1, 0, 0, 1))
         colors.push(vertexColorsAll[r])
     }
