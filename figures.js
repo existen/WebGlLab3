@@ -134,7 +134,7 @@ function CreateCone(size) {
 }
 function CreateSphere(size) {
     var r = 0.9 * size;
-    var segmentCount = 10;
+    var segmentCount = 15;
     ///
     var rings = [];
     var deltaPhi = 180 / segmentCount; //xy plane - outer ring
