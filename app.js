@@ -106,10 +106,14 @@ function InitGL() {
     App.uniformColorAdder = App.gl.getUniformLocation(program, "uColorAdder");
     //
     //
-    //set projection matrix
-    var projection = ortho(-1, 1, -1, 1, -100, 100);
     var uniformProjectionMatrix = App.gl.getUniformLocation(program, "uProjectionMatrix");
-    App.gl.uniformMatrix4fv(uniformProjectionMatrix, false, flatten2(projection));
+    var uniformMVM = App.gl.getUniformLocation(program, "uModelViewMatrix");
+    //set projection matrix
+    var projectionMatrix = ortho(-1, 1, -1, 1, -100, 100);
+    var mvMatrix = mat4();
+    App.gl.uniformMatrix4fv(uniformProjectionMatrix, false, flatten2(projectionMatrix));
+    checkError();
+    App.gl.uniformMatrix4fv(uniformMVM, false, flatten2(mvMatrix));
     checkError();
     //
     App.canvas.onmousedown = function (event) {
