@@ -147,7 +147,12 @@ function InitGL()
     //
     //
 
-    
+    //set projection matrix
+    var projection = ortho(-1, 1, -1, 1, -100, 100);
+    var uniformProjectionMatrix = App.gl.getUniformLocation(program, "uProjectionMatrix")
+    App.gl.uniformMatrix4fv(uniformProjectionMatrix, false, flatten2(projection));
+    checkError()
+    //
 
     App.canvas.onmousedown = event =>
     {
@@ -329,7 +334,7 @@ class FigureProperties
     }
 
 
-    CreateMVM() : number[]
+    CreateMVM() : number[][]
     {
         var sizeFactor = 0.2  //unit size
 

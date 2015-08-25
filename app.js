@@ -106,6 +106,12 @@ function InitGL() {
     App.uniformColorAdder = App.gl.getUniformLocation(program, "uColorAdder");
     //
     //
+    //set projection matrix
+    var projection = ortho(-1, 1, -1, 1, -100, 100);
+    var uniformProjectionMatrix = App.gl.getUniformLocation(program, "uProjectionMatrix");
+    App.gl.uniformMatrix4fv(uniformProjectionMatrix, false, flatten2(projection));
+    checkError();
+    //
     App.canvas.onmousedown = function (event) {
         if (event.which == 1)
             isMouseDown = true;

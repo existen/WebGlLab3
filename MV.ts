@@ -122,7 +122,7 @@ function mat3(...v: number[]) : number[]
 
 //----------------------------------------------------------------------------
 
-function mat4(...v: number[]) : number[]
+function mat4(...v: number[]) : number[][]
 {
     var m : any = [];
     switch (v.length)
@@ -267,7 +267,7 @@ function subtract(u, v): any
 
 //----------------------------------------------------------------------------
 
-function multArray(...matrices: number[][]) : number[]
+function multArray(...matrices: number[][][]) : number[][]
 {
     var result = matrices[0]
     for (var i = 1; i < matrices.length; ++i)
@@ -363,22 +363,22 @@ function translate(x, y, z)
 
 //----------------------------------------------------------------------------
 
-function rotateX(angle): number[]
+function rotateX(angle): number[][]
 {
     return rotate(angle, vec3(1, 0, 0))
 }
 
-function rotateY(angle: number): number[]
+function rotateY(angle: number): number[][]
 {
     return rotate(angle, vec3(0, 1, 0))
 }
 
-function rotateZ(angle: number): number[]
+function rotateZ(angle: number): number[][]
 {
     return rotate(angle, vec3(0, 0, 1))
 }
 
-function rotate(angle : number, axis) : number[]
+function rotate(angle : number, axis) : number[][]
 {
     if (!Array.isArray(axis)) {
         axis = [arguments[1], arguments[2], arguments[3]];
@@ -428,7 +428,7 @@ function scaleMat(x, y, z)
 //  ModelView Matrix Generators
 //
 
-function lookAt(eye: number[], at: number[], up: number[]) : number[]
+function lookAt(eye: number[], at: number[], up: number[]) : number[][]
 {
     if (!Array.isArray(eye) || eye.length != 3) {
         throw "lookAt(): first parameter [eye] must be an a vec3";

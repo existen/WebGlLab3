@@ -6,10 +6,13 @@
         attribute vec4 vColor;
         varying vec4 fColor;
 
+        //uniform mat4 uModelViewMatrix;
+        uniform mat4 uProjectionMatrix;
+
         void main()
         {
             fColor = vColor;
-            gl_Position = vPosition;
+            gl_Position = uProjectionMatrix * vPosition;
         }
 
 
