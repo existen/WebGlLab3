@@ -1,6 +1,7 @@
 var App;
 (function (App) {
     App.gl;
+    App.canvas;
     App.sliderRotation = [];
     App.sliderPosition = [];
     App.sliderScale = [];
@@ -13,10 +14,12 @@ var App;
     App.vBuffer;
     App.existingFigures = [];
     App.uniformColor;
+    App.uniformColorAdder;
+    App.selectedFigure;
 })(App || (App = {}));
 window.onload = function () {
-    var canvas = document.getElementById("gl-canvas");
-    App.gl = setupWebGL(canvas);
+    App.canvas = document.getElementById("gl-canvas");
+    App.gl = setupWebGL(App.canvas);
     if (!App.gl) {
         alert("WebGL isn't available");
     }
@@ -43,17 +46,36 @@ window.onload = function () {
         App.indexVertices = 0;
         App.indexElements = 0;
         App.existingFigures = [];
+        App.selectedFigure = null;
     };
     //
-    //
-    App.gl.viewport(0, 0, canvas.width, canvas.height);
+    App.gl.viewport(0, 0, App.canvas.width, App.canvas.height);
     App.gl.clearColor(0.0, 0.0, 0.0, 1.0);
     App.gl.enable(App.gl.DEPTH_TEST);
     InitGL();
 };
 function InitGL() {
+    //create framebuffer for color
+    var texture = App.gl.createTexture();
+    checkError();
+    App.gl.bindTexture(App.gl.TEXTURE_2D, texture);
+    checkError();
+    App.gl.pixelStorei(App.gl.UNPACK_FLIP_Y_WEBGL, 1);
+    checkError();
+    App.gl.texImage2D(App.gl.TEXTURE_2D, 0, App.gl.RGBA, App.canvas.width, App.canvas.height, 0, App.gl.RGBA, App.gl.UNSIGNED_BYTE, null);
+    checkError();
+    var framebuffer = App.gl.createFramebuffer(); //Allocate a frame buffer object
+    checkError();
+    App.gl.bindFramebuffer(App.gl.FRAMEBUFFER, framebuffer);
+    checkError();
+    App.gl.framebufferTexture2D(App.gl.FRAMEBUFFER, App.gl.COLOR_ATTACHMENT0, App.gl.TEXTURE_2D, texture, 0); //Attach color buffer
+    checkError();
+    App.gl.bindFramebuffer(App.gl.FRAMEBUFFER, null);
+    checkError();
+    //
     var program = initShaders(App.gl, "vertex-shader", "fragment-shader");
     App.gl.useProgram(program);
+    checkError();
     // array element buffer
     App.iBuffer = App.gl.createBuffer();
     App.gl.bindBuffer(App.gl.ELEMENT_ARRAY_BUFFER, App.iBuffer);
@@ -78,6 +100,25 @@ function InitGL() {
     App.gl.enableVertexAttribArray(vPosition);
     checkError();
     App.uniformColor = App.gl.getUniformLocation(program, "uColor");
+    App.uniformColorAdder = App.gl.getUniformLocation(program, "uColorAdder");
+    //
+    //
+    App.canvas.onmousedown = function (event) {
+        App.gl.bindFramebuffer(App.gl.FRAMEBUFFER, framebuffer);
+        App.gl.clear(App.gl.COLOR_BUFFER_BIT);
+        render(true);
+        //
+        var x = event.offsetX;
+        var y = App.canvas.height - event.offsetY;
+        var hiddenBufferColorByte = new Uint8Array(4);
+        App.gl.readPixels(x, y, 1, 1, App.gl.RGBA, App.gl.UNSIGNED_BYTE, hiddenBufferColorByte);
+        //check color
+        var selectedFigures = App.existingFigures.filter(function (f) { return f.GetFigureNumber() == hiddenBufferColorByte[0]; });
+        App.selectedFigure = selectedFigures.length != 0 ? selectedFigures[0] : null;
+        UpdateSlidersFromSelectedFigure();
+        App.gl.bindFramebuffer(App.gl.FRAMEBUFFER, null);
+        render();
+    };
     render();
 }
 function DrawFigure(figure) {
@@ -115,10 +156,10 @@ function checkError() {
             alert("INVALID_VALUE");
         else
             alert("XXX");
-        var fff = 5;
     }
 }
-function render() {
+function render(isUseHiddenBuffer) {
+    if (isUseHiddenBuffer === void 0) { isUseHiddenBuffer = false; }
     //rotate square 3 choices: in CPU, in GPU send angle, in GPU send MVM
     App.gl.clear(App.gl.COLOR_BUFFER_BIT | App.gl.DEPTH_BUFFER_BIT);
     //draw in one draw call!
@@ -129,8 +170,9 @@ function render() {
     App.existingFigures.forEach(function (figure) {
         //create vertices
         DrawFigure(figure);
-        //
-        //App.gl.uniform4fv(App.uniformColor, figure.verticesColors[0]);
+        App.gl.uniform4fv(App.uniformColor, isUseHiddenBuffer ? figure.GetHiddenBufferColor() : vec4(0, 0, 0, 0));
+        checkError();
+        App.gl.uniform4fv(App.uniformColorAdder, (!isUseHiddenBuffer && App.selectedFigure == figure) ? vec4(1, 0, 0, 0) : vec4(0, 0, 0, 0));
         checkError();
         //last parameter - byte offset
         //second parameter - count of elements
@@ -145,7 +187,16 @@ var FigureProperties = (function () {
         this.scale = vec3(2, 2, 2);
         this.rotation = vec3(30, 30, 30);
         this.position = vec3(0, 0, 0);
+        ++FigureProperties.figureNumberCounter;
+        this.figureNumber = FigureProperties.figureNumberCounter;
     }
+    FigureProperties.prototype.GetHiddenBufferColor = function () {
+        var result = vec4(this.figureNumber * 1.0 / 255.0, 0, 0, 1);
+        return result;
+    };
+    FigureProperties.prototype.GetFigureNumber = function () {
+        return this.figureNumber;
+    };
     FigureProperties.prototype.CreateMVM = function () {
         var sizeFactor = 0.2; //unit size
         //MVM
@@ -165,24 +216,31 @@ var FigureProperties = (function () {
         }
         return modifiedVerticesPositions;
     };
+    FigureProperties.figureNumberCounter = 0;
     return FigureProperties;
 })();
 function UpdateLastFigureViaSliders() {
-    if (App.existingFigures.length == 0)
+    if (App.selectedFigure == null)
         return;
-    var lastFigure = App.existingFigures[App.existingFigures.length - 1];
-    lastFigure.position = vec3(+App.sliderPosition[0].value, +App.sliderPosition[1].value, +App.sliderPosition[2].value);
-    lastFigure.rotation = vec3(+App.sliderRotation[0].value, +App.sliderRotation[1].value, +App.sliderRotation[2].value);
-    lastFigure.scale = vec3(+App.sliderScale[0].value, +App.sliderScale[1].value, +App.sliderScale[2].value);
+    App.selectedFigure.position = vec3(+App.sliderPosition[0].value, +App.sliderPosition[1].value, +App.sliderPosition[2].value);
+    App.selectedFigure.rotation = vec3(+App.sliderRotation[0].value, +App.sliderRotation[1].value, +App.sliderRotation[2].value);
+    App.selectedFigure.scale = vec3(+App.sliderScale[0].value, +App.sliderScale[1].value, +App.sliderScale[2].value);
     render();
+}
+function UpdateSlidersFromSelectedFigure() {
+    var selectedFigure = App.selectedFigure != null ? App.selectedFigure : new FigureProperties(); //defaults
+    for (var i = 0; i < 3; ++i) {
+        App.sliderPosition[i].value = String(selectedFigure.position[i]);
+        App.sliderRotation[i].value = String(selectedFigure.rotation[i]);
+        App.sliderScale[i].value = String(selectedFigure.scale[i]);
+    }
 }
 function CreateFigureOnCanvas() {
     //set slider to defaults
     var figureProps = new FigureProperties();
     App.existingFigures.push(figureProps);
-    App.sliderPosition[0].value = App.sliderPosition[1].value = App.sliderPosition[2].value = String(figureProps.position[0]);
-    App.sliderRotation[0].value = App.sliderRotation[1].value = App.sliderRotation[2].value = String(figureProps.rotation[0]);
-    App.sliderScale[0].value = App.sliderScale[1].value = App.sliderScale[2].value = String(figureProps.scale[0]);
+    App.selectedFigure = figureProps;
+    UpdateSlidersFromSelectedFigure();
     //var sizeFactor = 0.2  //unit size
     //var position = vec3(+sliderPosition[0].value, +sliderPosition[1].value, +sliderPosition[2].value)
     //var rotation = vec3(+sliderRotation[0].value, +sliderRotation[1].value, +sliderRotation[2].value)

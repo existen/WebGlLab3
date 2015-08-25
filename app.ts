@@ -2,6 +2,7 @@
 module App
 {
     export var gl: WebGLRenderingContext
+    export var canvas: HTMLCanvasElement
 
     export var sliderRotation: HTMLInputElement[] = []
     export var sliderPosition: HTMLInputElement[] = []
@@ -16,12 +17,15 @@ module App
 
     export var existingFigures: FigureProperties[] = []
     export var uniformColor: WebGLUniformLocation
+    export var uniformColorAdder: WebGLUniformLocation    
+
+    export var selectedFigure: FigureProperties
 }
 
 window.onload = () => {
 
-    var canvas = <HTMLCanvasElement>document.getElementById("gl-canvas");
-    App.gl = setupWebGL(canvas);
+    App.canvas = <HTMLCanvasElement>document.getElementById("gl-canvas");
+    App.gl = setupWebGL(App.canvas);
     if (!App.gl)
     {
         alert("WebGL isn't available");
@@ -59,13 +63,12 @@ window.onload = () => {
         App.indexVertices = 0
         App.indexElements = 0
         App.existingFigures = []
+        App.selectedFigure = null
     }
     //
 
 
-    //
-
-    App.gl.viewport(0, 0, canvas.width, canvas.height);
+    App.gl.viewport(0, 0, App.canvas.width, App.canvas.height);
     App.gl.clearColor(0.0, 0.0, 0.0, 1.0);
     App.gl.enable(App.gl.DEPTH_TEST);
 
@@ -75,9 +78,37 @@ window.onload = () => {
 
 function InitGL()
 {
+    //create framebuffer for color
+    var texture = App.gl.createTexture();
+    checkError()
+
+    App.gl.bindTexture(App.gl.TEXTURE_2D, texture);
+    checkError()
+
+    App.gl.pixelStorei(App.gl.UNPACK_FLIP_Y_WEBGL, 1);
+    checkError()
+
+    App.gl.texImage2D(App.gl.TEXTURE_2D, 0, App.gl.RGBA, App.canvas.width, App.canvas.height, 0,
+        App.gl.RGBA, App.gl.UNSIGNED_BYTE, null);
+    checkError()
+
+    var framebuffer = App.gl.createFramebuffer(); //Allocate a frame buffer object
+    checkError()
+
+    App.gl.bindFramebuffer(App.gl.FRAMEBUFFER, framebuffer);
+    checkError()
+
+    App.gl.framebufferTexture2D(App.gl.FRAMEBUFFER, App.gl.COLOR_ATTACHMENT0, App.gl.TEXTURE_2D, texture, 0); //Attach color buffer
+    checkError()
+
+    App.gl.bindFramebuffer(App.gl.FRAMEBUFFER, null);
+    checkError()
+    //
+
+
     var program = initShaders(App.gl, "vertex-shader", "fragment-shader");
     App.gl.useProgram(program);
-
+    checkError()
 
     // array element buffer
     App.iBuffer = App.gl.createBuffer();
@@ -108,6 +139,34 @@ function InitGL()
     checkError()
 
     App.uniformColor = App.gl.getUniformLocation(program, "uColor");
+    App.uniformColorAdder = App.gl.getUniformLocation(program, "uColorAdder");
+    //
+    //
+
+    
+
+    App.canvas.onmousedown = event =>
+    {
+        App.gl.bindFramebuffer(App.gl.FRAMEBUFFER, framebuffer)
+        App.gl.clear(App.gl.COLOR_BUFFER_BIT)
+        render(true)
+        //
+
+        var x = event.offsetX
+        var y = App.canvas.height - event.offsetY
+
+        var hiddenBufferColorByte = new Uint8Array(4)
+        App.gl.readPixels(x, y, 1, 1, App.gl.RGBA, App.gl.UNSIGNED_BYTE, hiddenBufferColorByte)
+
+        //check color
+        var selectedFigures = App.existingFigures.filter(f => f.GetFigureNumber() == hiddenBufferColorByte[0])
+        App.selectedFigure = selectedFigures.length != 0 ? selectedFigures[0] : null
+        UpdateSlidersFromSelectedFigure()
+
+        App.gl.bindFramebuffer(App.gl.FRAMEBUFFER, null);
+
+        render();
+    }
 
     render()
 }
@@ -161,12 +220,10 @@ function checkError()
             alert("INVALID_VALUE")
         else
             alert("XXX")
-
-        var fff = 5
     }
 }
 
-function render()
+function render(isUseHiddenBuffer = false)
 {
     //rotate square 3 choices: in CPU, in GPU send angle, in GPU send MVM
     App.gl.clear(App.gl.COLOR_BUFFER_BIT | App.gl.DEPTH_BUFFER_BIT)
@@ -181,14 +238,12 @@ function render()
     App.existingFigures.forEach(figure =>
     {
         //create vertices
-
-
-
-
         DrawFigure(figure)
 
-        //
-        //App.gl.uniform4fv(App.uniformColor, figure.verticesColors[0]);
+        App.gl.uniform4fv(App.uniformColor, isUseHiddenBuffer ? figure.GetHiddenBufferColor() : vec4(0, 0, 0, 0));
+        checkError()
+
+        App.gl.uniform4fv(App.uniformColorAdder, (!isUseHiddenBuffer && App.selectedFigure == figure) ? vec4(1, 0, 0, 0) : vec4(0, 0, 0, 0))
         checkError()
 
         //last parameter - byte offset
@@ -202,6 +257,9 @@ function render()
 
 class FigureProperties
 {
+    static figureNumberCounter = 0
+    figureNumber: number
+
     //defaults
     scale: number[] = vec3(2, 2, 2)
     rotation: number[] = vec3(30, 30, 30)
@@ -214,6 +272,24 @@ class FigureProperties
 
     elementsIndex: number
     elementsLength: number
+
+    constructor()
+    {
+        ++FigureProperties.figureNumberCounter
+        this.figureNumber = FigureProperties.figureNumberCounter
+    }
+
+    GetHiddenBufferColor()
+    {
+        var result = vec4(this.figureNumber * 1.0 / 255.0, 0, 0, 1)
+        return result
+    }
+
+    GetFigureNumber()
+    {
+        return this.figureNumber
+    }
+
 
     CreateMVM() : number[]
     {
@@ -244,27 +320,36 @@ class FigureProperties
 
 function UpdateLastFigureViaSliders()
 {
-    if (App.existingFigures.length == 0)
+    if (App.selectedFigure == null)
         return
 
-    var lastFigure = App.existingFigures[App.existingFigures.length - 1]
-
-    lastFigure.position = vec3(+App.sliderPosition[0].value, +App.sliderPosition[1].value, +App.sliderPosition[2].value)
-    lastFigure.rotation = vec3(+App.sliderRotation[0].value, +App.sliderRotation[1].value, +App.sliderRotation[2].value)
-    lastFigure.scale = vec3(+App.sliderScale[0].value, +App.sliderScale[1].value, +App.sliderScale[2].value)
+    App.selectedFigure.position = vec3(+App.sliderPosition[0].value, +App.sliderPosition[1].value, +App.sliderPosition[2].value)
+    App.selectedFigure.rotation = vec3(+App.sliderRotation[0].value, +App.sliderRotation[1].value, +App.sliderRotation[2].value)
+    App.selectedFigure.scale = vec3(+App.sliderScale[0].value, +App.sliderScale[1].value, +App.sliderScale[2].value)
 
     render()
+}
+
+function UpdateSlidersFromSelectedFigure()
+{
+    var selectedFigure = App.selectedFigure != null ? App.selectedFigure : new FigureProperties()  //defaults
+
+    for (var i = 0; i < 3; ++i)
+    {
+        App.sliderPosition[i].value = String(selectedFigure.position[i])
+        App.sliderRotation[i].value = String(selectedFigure.rotation[i])
+        App.sliderScale[i].value = String(selectedFigure.scale[i])
+    }
 }
 
 function CreateFigureOnCanvas()
 {
     //set slider to defaults
     var figureProps = new FigureProperties()
-    App.existingFigures.push(figureProps)    
+    App.existingFigures.push(figureProps)
+    App.selectedFigure = figureProps
 
-    App.sliderPosition[0].value = App.sliderPosition[1].value = App.sliderPosition[2].value = String(figureProps.position[0])
-    App.sliderRotation[0].value = App.sliderRotation[1].value = App.sliderRotation[2].value = String(figureProps.rotation[0])
-    App.sliderScale[0].value = App.sliderScale[1].value = App.sliderScale[2].value = String(figureProps.scale[0])
+    UpdateSlidersFromSelectedFigure()
 
     //var sizeFactor = 0.2  //unit size
 
