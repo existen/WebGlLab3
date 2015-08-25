@@ -75,6 +75,10 @@ window.onload = () => {
     InitGL()
 }
 
+var isMouseDown = false
+var lastMousePosition = null
+var touchedFigure = null
+
 
 function InitGL()
 {
@@ -147,6 +151,9 @@ function InitGL()
 
     App.canvas.onmousedown = event =>
     {
+        if (event.which == 1)
+            isMouseDown = true
+
         App.gl.bindFramebuffer(App.gl.FRAMEBUFFER, framebuffer)
         App.gl.clear(App.gl.COLOR_BUFFER_BIT)
         render(true)
@@ -160,12 +167,43 @@ function InitGL()
 
         //check color
         var selectedFigures = App.existingFigures.filter(f => f.GetFigureNumber() == hiddenBufferColorByte[0])
-        App.selectedFigure = selectedFigures.length != 0 ? selectedFigures[0] : null
+        App.selectedFigure = selectedFigures.length != 0 ? selectedFigures[0] : null        
         UpdateSlidersFromSelectedFigure()
 
         App.gl.bindFramebuffer(App.gl.FRAMEBUFFER, null);
 
         render();
+
+        touchedFigure = App.selectedFigure
+    }
+
+    App.canvas.onmouseup = event =>
+    {
+        if (event.which == 1)
+            isMouseDown = false
+
+        lastMousePosition = null
+        touchedFigure = null
+    }
+
+    App.canvas.onmousemove = event =>
+    {
+        if (!isMouseDown || touchedFigure == null)
+            return
+
+        if (lastMousePosition != null)
+        {
+            var dx = event.offsetX - lastMousePosition.x
+            var dy = event.offsetY - lastMousePosition.y
+
+            touchedFigure.position[0] += dx * 0.01
+            touchedFigure.position[1] += -dy * 0.01
+            UpdateSlidersFromSelectedFigure()
+
+            render()
+        }
+
+        lastMousePosition = { x: event.offsetX, y: event.offsetY }
     }
 
     render()

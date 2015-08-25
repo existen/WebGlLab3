@@ -54,6 +54,9 @@ window.onload = function () {
     App.gl.enable(App.gl.DEPTH_TEST);
     InitGL();
 };
+var isMouseDown = false;
+var lastMousePosition = null;
+var touchedFigure = null;
 function InitGL() {
     //create framebuffer for color
     var texture = App.gl.createTexture();
@@ -104,6 +107,8 @@ function InitGL() {
     //
     //
     App.canvas.onmousedown = function (event) {
+        if (event.which == 1)
+            isMouseDown = true;
         App.gl.bindFramebuffer(App.gl.FRAMEBUFFER, framebuffer);
         App.gl.clear(App.gl.COLOR_BUFFER_BIT);
         render(true);
@@ -118,6 +123,26 @@ function InitGL() {
         UpdateSlidersFromSelectedFigure();
         App.gl.bindFramebuffer(App.gl.FRAMEBUFFER, null);
         render();
+        touchedFigure = App.selectedFigure;
+    };
+    App.canvas.onmouseup = function (event) {
+        if (event.which == 1)
+            isMouseDown = false;
+        lastMousePosition = null;
+        touchedFigure = null;
+    };
+    App.canvas.onmousemove = function (event) {
+        if (!isMouseDown || touchedFigure == null)
+            return;
+        if (lastMousePosition != null) {
+            var dx = event.offsetX - lastMousePosition.x;
+            var dy = event.offsetY - lastMousePosition.y;
+            touchedFigure.position[0] += dx * 0.01;
+            touchedFigure.position[1] += -dy * 0.01;
+            UpdateSlidersFromSelectedFigure();
+            render();
+        }
+        lastMousePosition = { x: event.offsetX, y: event.offsetY };
     };
     render();
 }
