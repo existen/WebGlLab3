@@ -153,9 +153,77 @@
 //Delauney triangulation
 //
 
-//
-//
+//6.2
+//in OpenGL ES 2 there are 2 predefined frames: clip coordinate frame and normalized device coordinate window frame
+//1. Positioning camera - world frame or camera frame - setting MVM
+//2. Selecting a lens - camera frame - (focal length - like wide angle lens or telephoto lens) - projection matrix - perspective projection or orthogonal projection
+//3. Clipping - how much camera see - view volume
 
+//camera locate at origin and points to the negative z direction
+//default view volume - cube of len 2 cantered at the origin
+//default MVM and projection matrix is identity (object and camera frames are the same). 
+//this is ortogonal projection.PM is identity. projection plane - z=0
+
+//we can move camera to +z direction - translate the camera frame
+//we can move objects to -z direction - translate world frame. translate(0, 0, -d)
+
+//6.3
+//gl_Position = projectionMatrix * modelViewMatrix * vPosition;
+//default orthographic projects - M = I; M[3,3]=0 (z=0,x=1,y=1,w=1)
+
+//perspective: center - origin, projection plane - z = d, d < 0; proj. plane in front of camera
+//xp = x / (z/d);  yp = ...; zp = d; the futhers objects looks smaller, because z in below
+//M = I; M[4,4] = 0; M[3,4] = 1/d
+
+//6.4
+//sphere equations: x = r*sinTHETA*cosPHI; y = r*sinTHETA*sinPHI; z = r*cosTHETA
+//frustum
+
+//6.5
+//oblique projection = shear + orthographic projection
+
+//6.9 Phong model
+//r = 1(l*n)n - l //r - reflected light, l - light from source, n - normal to surface
+//perfect Lambertian surface - prefectly diffuse reflector:
+//-- reflected light is proportional to cosTHETA, i.e. if THETA=0 degres, then reflected light is maximum, because cos90 = 1
+//-- cosTHETA = l * n. vectors are normilized
+//-- kr, kg, kb - koefficients how much of each color is reflected
+//point source -  1/(d^2) - distance from the light source to surface
+
+//specular - ideal reflector
+//diffuser
+//light = diffuse + specular + ambient
+
+//specular term: Ir ~ ks*I*(cosPHI)^ALPHA; Ir - reflected intensity, I - incoming intensity, 
+//ks - absorption coefficient, amount of specular light, this is property of material
+//ALPHA - shininess coefficient
+//PHI = v*r, where v - view vector, r - reflected vector
+
+//6.10
+//ambient light: ka - reflection coefficient
+//Ia - intensity of ambient light
+//
+//distance term - 1/(a+bd+cd^2), where d - distance; a,b,c - some constants
+//
+//for each lightsource has seprate diffuse, specular, ambient terms, and rgb. so, we have 9 Intesities I. 
+//for each material we have 
+//-- how much absorbs coef for d,s,a r,g,b - 9 coefficients k
+//-- shininess coefficient ALPHA
+
+//for each light source and each color component, Phong model can be written as
+//I = kd*Id* l*n + ks*Is *(v*r)^ALPHA + ka*Ia
+
+//Phong-Blinn lighting model
+//modiefied Phong model - Blinn suggested approximation using the halfway vector that is more efficient
+//h = (l + v)/|l + v| - normalized vector halfway between l and r
+//replace (v*r)^ALPHA on (n*h)^BETA, BETA - must much shininess
+//note: halfway angle is half of angle between r and v if vector coplanar
+
+//n - normal to surface - we provide from application to vertex as vertex attribute
+//l, v - provide from application. r can be computed
+
+//plane is determed by 3 points. n = (p2-p0)*(p1-p0)
+//sphere: f(x,y,z)=0 => n = p. (point from center of sphere)
 
 
 var gl: WebGLRenderingContext
