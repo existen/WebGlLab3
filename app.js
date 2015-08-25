@@ -1,103 +1,117 @@
-var gl;
-var sliderRotation = [];
-var sliderPosition = [];
-var sliderScale = [];
-var boxFigure;
-var maxNumVertices = 100000;
-var indexVertices = 0;
-var indexElements = 0;
-var iBuffer;
-var cBuffer;
-var vBuffer;
+var App;
+(function (App) {
+    App.gl;
+    App.sliderRotation = [];
+    App.sliderPosition = [];
+    App.sliderScale = [];
+    App.boxFigure;
+    App.maxNumVertices = 100000;
+    App.indexVertices = 0;
+    App.indexElements = 0;
+    App.iBuffer;
+    App.cBuffer;
+    App.vBuffer;
+    App.existingFigures = [];
+    App.uniformColor;
+})(App || (App = {}));
 window.onload = function () {
     var canvas = document.getElementById("gl-canvas");
-    gl = setupWebGL(canvas);
-    if (!gl) {
+    App.gl = setupWebGL(canvas);
+    if (!App.gl) {
         alert("WebGL isn't available");
     }
     //
-    sliderRotation[0] = document.getElementById("sliderRotationX");
-    sliderRotation[1] = document.getElementById("sliderRotationY");
-    sliderRotation[2] = document.getElementById("sliderRotationZ");
-    sliderPosition[0] = document.getElementById("sliderPositionX");
-    sliderPosition[1] = document.getElementById("sliderPositionY");
-    sliderPosition[2] = document.getElementById("sliderPositionZ");
-    sliderScale[0] = document.getElementById("sliderScaleX");
-    sliderScale[1] = document.getElementById("sliderScaleY");
-    sliderScale[2] = document.getElementById("sliderScaleZ");
+    App.sliderRotation[0] = document.getElementById("sliderRotationX");
+    App.sliderRotation[1] = document.getElementById("sliderRotationY");
+    App.sliderRotation[2] = document.getElementById("sliderRotationZ");
+    App.sliderPosition[0] = document.getElementById("sliderPositionX");
+    App.sliderPosition[1] = document.getElementById("sliderPositionY");
+    App.sliderPosition[2] = document.getElementById("sliderPositionZ");
+    App.sliderScale[0] = document.getElementById("sliderScaleX");
+    App.sliderScale[1] = document.getElementById("sliderScaleY");
+    App.sliderScale[2] = document.getElementById("sliderScaleZ");
+    var sliders = [App.sliderRotation[0], App.sliderRotation[1], App.sliderRotation[2],
+        App.sliderPosition[0], App.sliderPosition[1], App.sliderPosition[2],
+        App.sliderScale[0], App.sliderScale[1], App.sliderScale[2]];
+    sliders.forEach(function (slider) { return slider.onchange = UpdateLastFigureViaSliders; });
+    //
     var butCreate = document.getElementById("butCreate");
     var butClear = document.getElementById("butClear");
-    boxFigure = document.getElementById("boxFigure");
+    App.boxFigure = document.getElementById("boxFigure");
     butCreate.onclick = CreateFigureOnCanvas;
     butClear.onclick = function () {
-        indexVertices = 0;
-        indexElements = 0;
+        App.indexVertices = 0;
+        App.indexElements = 0;
+        App.existingFigures = [];
     };
     //
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.enable(gl.DEPTH_TEST);
+    //
+    App.gl.viewport(0, 0, canvas.width, canvas.height);
+    App.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    App.gl.enable(App.gl.DEPTH_TEST);
     InitGL();
 };
 function InitGL() {
-    var program = initShaders(gl, "vertex-shader", "fragment-shader");
-    gl.useProgram(program);
+    var program = initShaders(App.gl, "vertex-shader", "fragment-shader");
+    App.gl.useProgram(program);
     // array element buffer
-    iBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, maxNumVertices, gl.STATIC_DRAW);
+    App.iBuffer = App.gl.createBuffer();
+    App.gl.bindBuffer(App.gl.ELEMENT_ARRAY_BUFFER, App.iBuffer);
+    App.gl.bufferData(App.gl.ELEMENT_ARRAY_BUFFER, App.maxNumVertices, App.gl.STATIC_DRAW);
     checkError();
     //color array atrribute buffer
-    cBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, maxNumVertices, gl.STATIC_DRAW);
+    App.cBuffer = App.gl.createBuffer();
+    App.gl.bindBuffer(App.gl.ARRAY_BUFFER, App.cBuffer);
+    App.gl.bufferData(App.gl.ARRAY_BUFFER, App.maxNumVertices, App.gl.STATIC_DRAW);
     checkError();
-    var vColor = gl.getAttribLocation(program, "vColor");
-    gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(vColor);
+    var vColor = App.gl.getAttribLocation(program, "vColor");
+    App.gl.vertexAttribPointer(vColor, 4, App.gl.FLOAT, false, 0, 0);
+    App.gl.enableVertexAttribArray(vColor);
     checkError();
     //vertex array attribute buffer
-    vBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, maxNumVertices, gl.STATIC_DRAW);
+    App.vBuffer = App.gl.createBuffer();
+    App.gl.bindBuffer(App.gl.ARRAY_BUFFER, App.vBuffer);
+    App.gl.bufferData(App.gl.ARRAY_BUFFER, App.maxNumVertices, App.gl.STATIC_DRAW);
     checkError();
-    var vPosition = gl.getAttribLocation(program, "vPosition");
-    gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(vPosition);
+    var vPosition = App.gl.getAttribLocation(program, "vPosition");
+    App.gl.vertexAttribPointer(vPosition, 4, App.gl.FLOAT, false, 0, 0);
+    App.gl.enableVertexAttribArray(vPosition);
     checkError();
+    App.uniformColor = App.gl.getUniformLocation(program, "uColor");
     render();
 }
 function DrawFigure(figure) {
+    var figureVertices = figure.GetModifiedVerticesPositions();
     var indices = flatten2_array(figure.triangles);
-    numElements = indices.length;
     //recalculate indices
     for (var i = 0; i < indices.length; ++i) {
-        indices[i] = indices[i] + indexVertices;
+        indices[i] = indices[i] + App.indexVertices;
     }
     //
-    gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
-    gl.bufferSubData(gl.ARRAY_BUFFER, 16 * indexVertices, flatten2(figure.vertices));
+    App.gl.bindBuffer(App.gl.ARRAY_BUFFER, App.vBuffer);
+    App.gl.bufferSubData(App.gl.ARRAY_BUFFER, 16 * App.indexVertices, flatten2(figureVertices));
     checkError();
-    gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
-    gl.bufferSubData(gl.ARRAY_BUFFER, 16 * indexVertices, flatten2(GetColorsArray(figure.vertices.length)));
+    App.gl.bindBuffer(App.gl.ARRAY_BUFFER, App.cBuffer);
+    App.gl.bufferSubData(App.gl.ARRAY_BUFFER, 16 * App.indexVertices, flatten2(figure.verticesColors));
     checkError();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, iBuffer);
-    gl.bufferSubData(gl.ELEMENT_ARRAY_BUFFER, 2 * indexElements, new Uint16Array(indices));
+    App.gl.bindBuffer(App.gl.ELEMENT_ARRAY_BUFFER, App.iBuffer);
+    App.gl.bufferSubData(App.gl.ELEMENT_ARRAY_BUFFER, 2 * App.indexElements, new Uint16Array(indices));
     checkError();
-    indexVertices += figure.vertices.length;
-    indexElements += indices.length;
-    render();
+    figure.elementsIndex = App.indexElements;
+    figure.elementsLength = indices.length;
+    App.indexVertices += figureVertices.length;
+    App.indexElements += indices.length;
 }
 function checkError() {
-    var err = gl.getError();
+    var err = App.gl.getError();
     if (err != 0) {
-        if (err == gl.INVALID_OPERATION)
+        if (err == App.gl.INVALID_OPERATION)
             alert("INVALID_OPERATION");
-        else if (err == gl.INVALID_ENUM)
+        else if (err == App.gl.INVALID_ENUM)
             alert("INVALID_ENUM");
-        else if (err == gl.INVALID_FRAMEBUFFER_OPERATION)
+        else if (err == App.gl.INVALID_FRAMEBUFFER_OPERATION)
             alert("INVALID_FRAMEBUFFER_OPERATION");
-        else if (err == gl.INVALID_VALUE)
+        else if (err == App.gl.INVALID_VALUE)
             alert("INVALID_VALUE");
         else
             alert("XXX");
@@ -106,25 +120,82 @@ function checkError() {
 }
 function render() {
     //rotate square 3 choices: in CPU, in GPU send angle, in GPU send MVM
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.drawElements(gl.TRIANGLES, indexElements, gl.UNSIGNED_SHORT, 0);
-    //gl.drawElements(gl.LINE_LOOP, indexElements, gl.UNSIGNED_SHORT, 0)
-    requestAnimationFrame(render);
+    App.gl.clear(App.gl.COLOR_BUFFER_BIT | App.gl.DEPTH_BUFFER_BIT);
+    //draw in one draw call!
+    //gl.drawElements(gl.TRIANGLES, indexElements, gl.UNSIGNED_SHORT, 0) //gl.LINE_LOOP
+    //clear
+    App.indexVertices = 0;
+    App.indexElements = 0;
+    App.existingFigures.forEach(function (figure) {
+        //create vertices
+        DrawFigure(figure);
+        //
+        //App.gl.uniform4fv(App.uniformColor, figure.verticesColors[0]);
+        checkError();
+        //last parameter - byte offset
+        //second parameter - count of elements
+        App.gl.drawElements(App.gl.TRIANGLES, figure.elementsLength, App.gl.UNSIGNED_SHORT, figure.elementsIndex * 2);
+        checkError();
+    });
+    //requestAnimationFrame(render);
+}
+var FigureProperties = (function () {
+    function FigureProperties() {
+        //defaults
+        this.scale = vec3(2, 2, 2);
+        this.rotation = vec3(30, 30, 30);
+        this.position = vec3(0, 0, 0);
+    }
+    FigureProperties.prototype.CreateMVM = function () {
+        var sizeFactor = 0.2; //unit size
+        //MVM
+        var matScale = scaleMat(this.scale[0] * sizeFactor, this.scale[1] * sizeFactor, this.scale[2] * sizeFactor);
+        var matRotationX = rotateX(this.rotation[0]);
+        var matRotationY = rotateY(this.rotation[1]);
+        var matRotationZ = rotateZ(this.rotation[2]);
+        var matPosition = translate(this.position[0] * sizeFactor, this.position[1] * sizeFactor, this.position[2] * sizeFactor);
+        var mv = multArray(matPosition, matRotationZ, matRotationY, matRotationX, matScale);
+        return mv;
+    };
+    FigureProperties.prototype.GetModifiedVerticesPositions = function () {
+        var mv = this.CreateMVM();
+        var modifiedVerticesPositions = this.verticesPositions.slice(); //copy
+        for (var i = 0; i < modifiedVerticesPositions.length; ++i) {
+            modifiedVerticesPositions[i] = multVectorWithMatrix(mv, modifiedVerticesPositions[i]);
+        }
+        return modifiedVerticesPositions;
+    };
+    return FigureProperties;
+})();
+function UpdateLastFigureViaSliders() {
+    if (App.existingFigures.length == 0)
+        return;
+    var lastFigure = App.existingFigures[App.existingFigures.length - 1];
+    lastFigure.position = vec3(+App.sliderPosition[0].value, +App.sliderPosition[1].value, +App.sliderPosition[2].value);
+    lastFigure.rotation = vec3(+App.sliderRotation[0].value, +App.sliderRotation[1].value, +App.sliderRotation[2].value);
+    lastFigure.scale = vec3(+App.sliderScale[0].value, +App.sliderScale[1].value, +App.sliderScale[2].value);
+    render();
 }
 function CreateFigureOnCanvas() {
-    var sizeFactor = 0.2; //unit size
-    var position = vec3(+sliderPosition[0].value, +sliderPosition[1].value, +sliderPosition[2].value);
-    var rotation = vec3(+sliderRotation[0].value, +sliderRotation[1].value, +sliderRotation[2].value);
-    var scale = vec3(+sliderScale[0].value, +sliderScale[1].value, +sliderScale[2].value);
-    var figureIndex = +boxFigure.value;
-    //MVM
-    var matScale = scaleMat(scale[0] * sizeFactor, scale[1] * sizeFactor, scale[2] * sizeFactor);
-    var matRotationX = rotateX(rotation[0]);
-    var matRotationY = rotateY(rotation[1]);
-    var matRotationZ = rotateZ(rotation[2]);
-    var matPosition = translate(position[0] * sizeFactor, position[1] * sizeFactor, position[2] * sizeFactor);
-    var mv = multArray(matPosition, matRotationZ, matRotationY, matRotationX, matScale);
+    //set slider to defaults
+    var figureProps = new FigureProperties();
+    App.existingFigures.push(figureProps);
+    App.sliderPosition[0].value = App.sliderPosition[1].value = App.sliderPosition[2].value = String(figureProps.position[0]);
+    App.sliderRotation[0].value = App.sliderRotation[1].value = App.sliderRotation[2].value = String(figureProps.rotation[0]);
+    App.sliderScale[0].value = App.sliderScale[1].value = App.sliderScale[2].value = String(figureProps.scale[0]);
+    //var sizeFactor = 0.2  //unit size
+    //var position = vec3(+sliderPosition[0].value, +sliderPosition[1].value, +sliderPosition[2].value)
+    //var rotation = vec3(+sliderRotation[0].value, +sliderRotation[1].value, +sliderRotation[2].value)
+    //var scale = vec3(+sliderScale[0].value, +sliderScale[1].value, +sliderScale[2].value)
+    ////MVM
+    //var matScale = scaleMat(scale[0] * sizeFactor, scale[1] * sizeFactor, scale[2] * sizeFactor)
+    //var matRotationX = rotateX(rotation[0])
+    //var matRotationY = rotateY(rotation[1])
+    //var matRotationZ = rotateZ(rotation[2])
+    //var matPosition = translate(position[0] * sizeFactor, position[1] * sizeFactor, position[2] * sizeFactor)
+    //var mv = multArray(matPosition, matRotationZ, matRotationY, matRotationX, matScale)
     //create figure
+    var figureIndex = +App.boxFigure.value;
     var createFigure = [];
     createFigure[0] = CreateSphere;
     createFigure[1] = CreateCylinder;
@@ -133,11 +204,16 @@ function CreateFigureOnCanvas() {
     var figure = createFigure[figureIndex](1.0);
     var vertices = figure.vertices;
     var triangles = figure.triangles;
+    figureProps.verticesPositions = vertices;
+    figureProps.triangles = triangles;
+    figureProps.verticesColors = GetColorsArray(figureProps.verticesPositions.length);
     //
-    for (var i = 0; i < vertices.length; ++i) {
-        vertices[i] = multVectorWithMatrix(mv, vertices[i]);
-    }
-    //
-    DrawFigure(figure);
+    //for (var i = 0; i < vertices.length; ++i)
+    //{
+    //    vertices[i] = multVectorWithMatrix(mv, vertices[i])
+    //}
+    ////
+    //DrawFigure(figure)
+    render();
 }
 //# sourceMappingURL=app.js.map
